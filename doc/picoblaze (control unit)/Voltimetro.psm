@@ -1,0 +1,106 @@
+VHDL	"ROM_blank_modificada.vhd", "picocode.vhd", "picocode"
+interrupcion                      	dsin $00
+voltaje_1							dsin $01
+voltaje_2							dsin $02
+bit_busy							dsin $03
+
+send_data							dsout $02
+send_command						dsout $01
+inicialize							dsout $00
+
+v1									equ s0
+v2									equ s1
+parte_entera 						equ s2
+parte_decimal						equ s3
+coma								equ s4
+cociente							equ s5
+V									equ s6
+igual								equ s7
+busy								equ s8
+uno									equ s9
+cero								equ sA	
+clear								equ sB							
+									
+									org $00
+									load coma,$2E
+									load V,$56
+									load igual,$3D
+									load uno,1
+									load cero,0
+									load clear,$01
+
+espera :							in busy,bit_busy					
+									comp busy,1
+									jump z,espera
+									out cero,inicialize
+									eint
+
+main:																						
+									jump main
+									
+									
+									
+									
+isr:								load cociente,0
+									load parte_entera,0
+									load parte_decimal,0
+									
+pausa:					  			in busy,bit_busy					
+									comp busy,1
+									jump z,pausa
+									out clear,send_command
+																		
+									in v1,voltaje_1
+									in v2,voltaje_2
+									comp v2,v1
+									jump c,sigue
+									in v1,voltaje_2
+									in v2,voltaje_1
+									
+sigue:								sub v1,v2
+									comp v1,2
+									jump nc,division
+									
+continue:							add cociente,48
+									add parte_entera,48
+									
+espera1:							in busy,bit_busy					
+									comp busy,1
+									jump z,espera1
+									out V,send_data
+							
+espera2:							in busy,bit_busy
+									comp busy,1
+									jump z,espera2	
+									out igual,send_data
+								
+espera3:							in busy,bit_busy
+									comp busy,1
+									jump z,espera3
+									out parte_entera,send_data
+									
+espera4:							in busy,bit_busy
+									comp busy,1
+									jump z,espera4
+									out coma,send_data
+									
+espera5:							in busy,bit_busy
+									comp busy,1
+									jump z,espera5
+									out cociente,send_data
+									reti enable
+
+division:							sub v1,2
+									add cociente,1
+									comp cociente,10
+									jump z,incremento_entero
+cont:								comp v1,2
+									jump nc,division
+									jump continue
+									
+incremento_entero:					add parte_entera,1
+									load cociente,0
+									jump cont
+
+									org $3FF
+									jump isr
